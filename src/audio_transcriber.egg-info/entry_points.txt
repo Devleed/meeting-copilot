@@ -1,0 +1,2 @@
+[console_scripts]
+copilot = copilot:main

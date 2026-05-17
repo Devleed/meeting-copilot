@@ -1,0 +1,7 @@
+assistant
+audio
+config
+copilot
+llm
+rag
+transcribe
