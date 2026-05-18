@@ -75,7 +75,6 @@ def main() -> None:
         docs: list = loader.load(path)
         all_docs.extend(docs)
         print(f"Context loaded from: {path}")
-        print(f"Preview: {docs[0]['content'][:100]}...\n")
 
     if not all_docs:
         print("No context files provided — running without context.\n")

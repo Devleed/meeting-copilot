@@ -15,10 +15,18 @@ class LLMServiceFactory:
         provider = config.llm_provider.lower()
 
         if provider == "openai":
+            if not config.openai_api_key:
+                raise EnvironmentError(
+                    "OPENAI_API_KEY is required for LLM_PROVIDER=openai but is not set."
+                )
             from llm.openai_service import OpenAIService
             return OpenAIService(api_key=config.openai_api_key)
 
         if provider == "claude":
+            if not config.anthropic_api_key:
+                raise EnvironmentError(
+                    "ANTHROPIC_API_KEY is required for LLM_PROVIDER=claude but is not set."
+                )
             from llm.claude_service import ClaudeService
             return ClaudeService(api_key=config.anthropic_api_key)
 

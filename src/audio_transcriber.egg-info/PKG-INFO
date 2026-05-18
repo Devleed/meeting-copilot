@@ -10,7 +10,7 @@ Requires-Dist: anthropic
 Requires-Dist: torch
 Requires-Dist: tiktoken
 Requires-Dist: qdrant-client
-Requires-Dist: pypdf2
+Requires-Dist: pypdf
 Requires-Dist: python-docx
 Requires-Dist: python-dotenv
 Requires-Dist: rank-bm25

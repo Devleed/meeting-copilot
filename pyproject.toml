@@ -11,7 +11,7 @@ dependencies = [
     "torch",
     "tiktoken",
     "qdrant-client",
-    "pypdf2",
+    "pypdf",
     "python-docx",
     "python-dotenv",
     "rank-bm25",

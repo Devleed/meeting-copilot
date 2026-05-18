@@ -64,7 +64,14 @@ class AppConfig:
         #   faster-whisper model variant. "base" is fast and accurate enough for
         #   meeting speech. Options (ascending quality / size):
         #   tiny → base → small → medium → large-v2.
-        self.model_size: str = self._str("MODEL_SIZE", "base")
+        _VALID_MODEL_SIZES = {"tiny", "base", "small", "medium", "large-v2", "large-v3"}
+        _model_size = self._str("MODEL_SIZE", "base")
+        if _model_size not in _VALID_MODEL_SIZES:
+            raise ValueError(
+                f"Invalid MODEL_SIZE '{_model_size}'. "
+                f"Must be one of: {', '.join(sorted(_VALID_MODEL_SIZES))}"
+            )
+        self.model_size: str = _model_size
 
         # ── Voice Activity Detection settings ────────────────────────────────
 

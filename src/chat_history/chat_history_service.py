@@ -1,5 +1,8 @@
+import os
 import uuid
 from datetime import datetime
+
+_MAX_ENTRIES = 500
 
 
 class _ChatEntry:
@@ -32,6 +35,8 @@ class ChatHistoryService:
     # ── Write ──────────────────────────────────────────────────────────────────
 
     def add_entry(self, they_said: str, response: str) -> None:
+        if len(self._entries) >= _MAX_ENTRIES:
+            self._entries.pop(0)
         self._entries.append(_ChatEntry(they_said, response, datetime.now()))
 
     # ── Read ───────────────────────────────────────────────────────────────────
@@ -67,6 +72,9 @@ class ChatHistoryService:
                 f"chat_history_{self.session_id}"
                 f"_{ended_at.strftime('%Y%m%d_%H%M%S')}.txt"
             )
+        # Strip any directory component from caller-supplied paths to prevent
+        # path traversal (e.g. "../../etc/passwd").
+        filepath = os.path.basename(filepath)
 
         lines = [
             "=" * 62,

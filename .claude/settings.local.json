@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(uv sync *)"
+      "Bash(uv sync *)",
+      "Bash(git check-ignore *)",
+      "Bash(python3 -c \"import openai; help\\(openai.AuthenticationError\\)\")"
     ]
   }
 }

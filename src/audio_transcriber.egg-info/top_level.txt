@@ -1,5 +1,6 @@
 assistant
 audio
+chat_history
 config
 copilot
 llm

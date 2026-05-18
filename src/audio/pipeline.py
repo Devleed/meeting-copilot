@@ -324,7 +324,6 @@ class AudioPipeline:
             # Feed each non-empty segment to the flush buffer.
             # The buffer resets its debounce timer on each add() call.
             self._flush_buffer.add(text)
-            print(f"[ buffered ]: {text}")
 
     # ── Flush callback (called by FlushBuffer on its timer thread) ────────────
 

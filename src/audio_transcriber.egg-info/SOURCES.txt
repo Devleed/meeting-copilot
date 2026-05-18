@@ -1,3 +1,4 @@
+README.md
 pyproject.toml
 src/config.py
 src/copilot.py
@@ -20,6 +21,8 @@ src/audio_transcriber.egg-info/dependency_links.txt
 src/audio_transcriber.egg-info/entry_points.txt
 src/audio_transcriber.egg-info/requires.txt
 src/audio_transcriber.egg-info/top_level.txt
+src/chat_history/__init__.py
+src/chat_history/chat_history_service.py
 src/llm/__init__.py
 src/llm/base.py
 src/llm/claude_service.py

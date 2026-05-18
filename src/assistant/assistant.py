@@ -19,22 +19,17 @@ from assistant.conversation_history import ConversationHistory
 from config import AppConfig as _AppConfig
 from llm.factory import LLMServiceFactory as _LLMServiceFactory
 
-# Module-level singleton used by the shim function below.
-_config = _AppConfig()
-_greeting_filter = GreetingFilter(DEFAULT_GREETINGS)
-_history = ConversationHistory(max_size=5)
-
-
 def get_suggestion(they_said: str, retriever, manual: bool = False) -> None:
     """
     Backwards-compatibility shim.
 
     Prefer instantiating SuggestionGenerator directly via copilot.py.
     """
+    config = _AppConfig()
     generator = _SuggestionGenerator(
-        llm_service=_LLMServiceFactory.create(_config),
+        llm_service=_LLMServiceFactory.create(config),
         retriever=retriever,
-        greeting_filter=_greeting_filter,
-        conversation_history=_history,
+        greeting_filter=GreetingFilter(DEFAULT_GREETINGS),
+        conversation_history=ConversationHistory(max_size=5),
     )
     generator.generate(they_said, manual=manual)

@@ -9,10 +9,10 @@
 #   ContextReader        (abstract) — defines the interface contract:
 #                          read(filepath) → str. Every concrete reader must
 #                          implement this method; callers depend only on this
-#                          abstraction, not on PyPDF2/docx directly.
+#                          abstraction, not on pypdf/docx directly.
 #
 #   TxtContextReader     — reads plain-text (.txt) files.
-#   PdfContextReader     — reads PDF files using PyPDF2.
+#   PdfContextReader     — reads PDF files using pypdf.
 #   DocxContextReader    — reads Word documents using python-docx.
 #
 #   ContextReaderFactory — maps file extensions to reader classes.
@@ -29,7 +29,7 @@
 #   O — new formats are supported without modifying existing readers.
 #   L — all ContextReader subclasses are fully substitutable for the base class.
 #   I — ContextReader exposes only one method (read); no fat interface.
-#   D — ContextLoader depends on the ContextReader abstraction, not on PyPDF2
+#   D — ContextLoader depends on the ContextReader abstraction, not on pypdf
 #       or docx libraries directly.
 # =============================================================================
 
@@ -51,7 +51,7 @@ class ContextReader(ABC):
 
     Using ABC satisfies the Dependency Inversion Principle: callers
     (ContextLoader, tests) depend on this abstraction rather than on
-    specific third-party libraries like PyPDF2 or python-docx.
+    specific third-party libraries like pypdf or python-docx.
     """
 
     @abstractmethod   # @abstractmethod — forces each subclass to implement this method.
@@ -96,7 +96,7 @@ class TxtContextReader(ContextReader):
 
 class PdfContextReader(ContextReader):
     """
-    Reads PDF files (.pdf) using the PyPDF2 library.
+    Reads PDF files (.pdf) using the pypdf library.
 
     Responsibility: extract text from every page of a PDF and join the
     pages with newlines. Layout, images, and formatting are discarded —
@@ -104,10 +104,10 @@ class PdfContextReader(ContextReader):
     """
 
     def read(self, filepath: str) -> str:
-        # Lazy import — only import PyPDF2 when this reader is actually used.
-        # This avoids an ImportError at startup on machines where PyPDF2 is not
+        # Lazy import — only import pypdf when this reader is actually used.
+        # This avoids an ImportError at startup on machines where pypdf is not
         # installed, as long as the user never provides a .pdf file.
-        from PyPDF2 import PdfReader  # PdfReader — main class for parsing PDF structure
+        from pypdf import PdfReader  # PdfReader — main class for parsing PDF structure
 
         # PdfReader(filepath) — opens and parses the binary PDF file.
         # Internally builds a page tree representing the document structure.
@@ -252,6 +252,11 @@ class ContextLoader:
         if not os.path.exists(filepath):
             print(f"Context file not found: {filepath}")
             sys.exit(1)  # sys.exit(1) — terminate the process with exit code 1 (error)
+
+        _MAX_FILE_BYTES = 50 * 1024 * 1024  # 50 MB
+        if os.path.getsize(filepath) > _MAX_FILE_BYTES:
+            print(f"Context file too large (max 50 MB): {filepath}")
+            sys.exit(1)
 
         # os.path.splitext(filepath) — splits "docs/notes.pdf" into ("docs/notes", ".pdf").
         # [1] — index 1 selects the extension part of the tuple.
