@@ -41,15 +41,17 @@ class SuggestionGenerator:
 
     def __init__(
         self,
-        llm_service,          # llm_service         — BaseLLMService instance
-        retriever,            # retriever           — BaseRetriever instance
-        greeting_filter,      # greeting_filter     — GreetingFilter instance
-        conversation_history, # conversation_history — ConversationHistory instance
+        llm_service,           # llm_service          — BaseLLMService instance
+        retriever,             # retriever            — BaseRetriever instance
+        greeting_filter,       # greeting_filter      — GreetingFilter instance
+        conversation_history,  # conversation_history — ConversationHistory instance
+        chat_history_service=None,  # chat_history_service — ChatHistoryService | None
     ) -> None:
         self._llm = llm_service
         self._retriever = retriever
         self._greeting_filter = greeting_filter
         self._history = conversation_history
+        self._chat_history = chat_history_service
         self._max_tokens: int = 300
 
     def generate(self, they_said: str, manual: bool = False) -> None:
@@ -108,22 +110,28 @@ FOLLOW-UP: <suggested follow-up question>
 <meeting-context>{context_block}</meeting-context>
 <chat-history>{history_block}</chat-history>"""
 
-        # ── Step 6: Call the LLM service ─────────────────────────────────────
+        # ── Step 6: Stream the LLM response to terminal ───────────────────────
         # Wrap in try/except to handle network errors, rate limits, and auth failures
         # gracefully — the audio pipeline continues even if one API call fails.
         try:
-            reply: str = self._llm.get_suggestion(
-                system_prompt=system_prompt,
-                user_message=f"They just said: {they_said}",
-                max_tokens=self._max_tokens,
-            )
-
-            # ── Step 7: Print the formatted response ──────────────────────────
             print("\n" + "─" * 50)
             print(f"THEY SAID: {they_said}")
             print()
-            print(reply)
-            print("─" * 50 + "\n")
+
+            chunks: list[str] = []
+            for chunk in self._llm.stream_suggestion(
+                system_prompt=system_prompt,
+                user_message=f"They just said: {they_said}",
+                max_tokens=self._max_tokens,
+            ):
+                print(chunk, end="", flush=True)
+                chunks.append(chunk)
+
+            print("\n" + "─" * 50 + "\n")
+
+            # ── Step 7: Record in session chat history ────────────────────────
+            if self._chat_history is not None:
+                self._chat_history.add_entry(they_said, "".join(chunks))
 
         except Exception as e:
             print(f"[LLM error]: {e}")

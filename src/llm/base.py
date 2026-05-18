@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 
 
 class BaseLLMService(ABC):
     """
     Abstract base for LLM provider integrations.
 
-    All providers must implement get_suggestion(), which takes a system prompt,
-    a user message, and a token cap, and returns the model's raw text reply.
+    All providers must implement get_suggestion() and stream_suggestion().
     """
 
     @abstractmethod
@@ -32,4 +32,29 @@ class BaseLLMService(ABC):
         -------
         str
             The model's raw text reply (ANSWER + FOLLOW-UP format).
+        """
+
+    @abstractmethod
+    def stream_suggestion(
+        self,
+        system_prompt: str,
+        user_message: str,
+        max_tokens: int = 300,
+    ) -> Iterator[str]:
+        """
+        Stream the LLM response, yielding text chunks as they arrive.
+
+        Parameters
+        ----------
+        system_prompt : str
+            Instructions and meeting context passed as the system role.
+        user_message : str
+            The transcribed utterance from the speaker.
+        max_tokens : int
+            Upper bound on response length in tokens.
+
+        Yields
+        ------
+        str
+            Successive text chunks of the model's reply.
         """

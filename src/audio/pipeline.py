@@ -76,13 +76,17 @@ class AudioPipeline:
         pipeline.run()   # blocks until Ctrl+C
     """
 
-    def __init__(self, config, suggestion_generator) -> None:
+    def __init__(self, config, suggestion_generator, chat_history_service=None) -> None:
         # config — AppConfig instance; provides all audio and VAD parameters.
         self._config = config
 
         # suggestion_generator — SuggestionGenerator instance; called with the
         # final transcribed text when the flush timer fires or Enter is pressed.
         self._suggestion_gen = suggestion_generator
+
+        # chat_history_service — ChatHistoryService | None; used to display and
+        # export the session history when the user ends the session with "q".
+        self._chat_history = chat_history_service
 
         # ── Thread-safe audio queue ────────────────────────────────────────────
         # The audio callback (called on a high-priority audio thread) pushes
@@ -165,7 +169,8 @@ class AudioPipeline:
 
         # Print the initial mode banner before entering the stream context.
         print("[ MODE: AUTO — VAD will detect end of speech ]")
-        print("[ Type m + Enter to toggle mode | Press Enter in manual mode to transcribe ]\n")
+        print("[ Type m + Enter to toggle mode | Press Enter in manual mode to transcribe ]")
+        print("[ Type q + Enter to end session and view chat history ]\n")
 
         # `with capture.open(callback=...) as _:` — open the stream and keep it alive
         # for the duration of the with-block. The callback is called on the PortAudio
@@ -391,6 +396,29 @@ class AudioPipeline:
         # launch the transcription on a background thread.
         threading.Thread(target=_do_transcribe, daemon=True).start()
 
+    # ── Session end ───────────────────────────────────────────────────────────
+
+    def _end_session(self) -> None:
+        """
+        Display the full session chat history and offer to export it as a TXT file.
+
+        Called when the user types "q" in the command loop. After this returns,
+        the command loop breaks and the audio stream is closed.
+        """
+        if self._chat_history is None:
+            print("[ no chat history service configured ]")
+            return
+
+        self._chat_history.display()
+
+        print("\nExport chat history as TXT? Press e + Enter to export, or Enter to skip: ", end="", flush=True)
+        answer: str = sys.stdin.readline().strip()
+        if answer == "e":
+            path: str = self._chat_history.export_txt()
+            print(f"[ exported → {path} ]")
+
+        print("[ session ended ]\n")
+
     # ── Main-thread command loop ───────────────────────────────────────────────
 
     def _command_loop(self) -> None:
@@ -416,7 +444,12 @@ class AudioPipeline:
             # .strip() — remove the trailing newline (\n) and any surrounding whitespace.
             cmd: str = line.strip()
 
-            if cmd == "m":
+            if cmd == "q":
+                # End session: display history and offer TXT export, then exit.
+                self._end_session()
+                break
+
+            elif cmd == "m":
                 # Toggle between auto and manual mode.
                 if self._mode == "auto":
                     self._mode = "manual"
@@ -432,5 +465,5 @@ class AudioPipeline:
                     print("[ MODE: AUTO — VAD will detect end of speech ]")
 
             elif self._mode == "manual":
-                # Any key press (other than "m") in manual mode triggers transcription.
+                # Any key press (other than "m" or "q") in manual mode triggers transcription.
                 self._transcribe_manual()

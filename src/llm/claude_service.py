@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+
 import anthropic
 
 from llm.base import BaseLLMService
@@ -25,3 +27,17 @@ class ClaudeService(BaseLLMService):
             ],
         )
         return response.content[0].text.strip()
+
+    def stream_suggestion(
+        self,
+        system_prompt: str,
+        user_message: str,
+        max_tokens: int = 300,
+    ) -> Iterator[str]:
+        with self._client.messages.stream(
+            model=self._model,
+            max_tokens=max_tokens,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+        ) as stream:
+            yield from stream.text_stream

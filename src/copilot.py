@@ -61,6 +61,10 @@ from assistant.suggestion_generator import SuggestionGenerator
 # AudioPipeline runs the audio capture → VAD → Whisper → flush loop.
 from audio.pipeline import AudioPipeline
 
+# ── Chat history ───────────────────────────────────────────────────────────────
+# ChatHistoryService records every exchange for the current session.
+from chat_history.chat_history_service import ChatHistoryService
+
 
 def main() -> None:
     config = AppConfig()
@@ -80,15 +84,23 @@ def main() -> None:
     greeting_filter = GreetingFilter(DEFAULT_GREETINGS)
     conversation_history = ConversationHistory(max_size=5)
     llm_service = LLMServiceFactory.create(config)
+    chat_history = ChatHistoryService()
+
+    print(f"Session ID: {chat_history.session_id}\n")
 
     generator = SuggestionGenerator(
         llm_service=llm_service,
         retriever=retriever,
         greeting_filter=greeting_filter,
         conversation_history=conversation_history,
+        chat_history_service=chat_history,
     )
 
-    pipeline = AudioPipeline(config=config, suggestion_generator=generator)
+    pipeline = AudioPipeline(
+        config=config,
+        suggestion_generator=generator,
+        chat_history_service=chat_history,
+    )
     pipeline.run()
 
 
