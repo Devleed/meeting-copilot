@@ -1,5 +1,7 @@
 # Meeting Copilot
 
+<video src="assets/demo.mov" controls width="100%"></video>
+
 A real-time AI meeting assistant that listens to your system audio, transcribes speech using Whisper, and streams AI-generated answers and follow-up questions to your terminal — with optional document context via RAG.
 
 ---
