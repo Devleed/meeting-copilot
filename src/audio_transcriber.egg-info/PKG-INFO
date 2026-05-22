@@ -16,3 +16,6 @@ Requires-Dist: python-dotenv
 Requires-Dist: rank-bm25
 Requires-Dist: cohere
 Requires-Dist: torchaudio>=2.11.0
+Requires-Dist: fastapi>=0.100.0
+Requires-Dist: uvicorn[standard]>=0.20.0
+Requires-Dist: httpx>=0.24.0

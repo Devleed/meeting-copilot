@@ -17,10 +17,14 @@ dependencies = [
     "rank-bm25",
     "cohere",
     "torchaudio>=2.11.0",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.20.0",
+    "httpx>=0.24.0",
 ]
 
 [project.scripts]
 copilot = "copilot:main"
+suggest-server = "api.server:start"
 
 [tool.uv]
 package = true

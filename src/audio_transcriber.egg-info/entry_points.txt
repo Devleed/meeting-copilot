@@ -1,2 +1,3 @@
 [console_scripts]
 copilot = copilot:main
+suggest-server = api.server:start

@@ -3,6 +3,10 @@ pyproject.toml
 src/config.py
 src/copilot.py
 src/transcribe.py
+src/api/__init__.py
+src/api/client.py
+src/api/models.py
+src/api/server.py
 src/assistant/__init__.py
 src/assistant/assistant.py
 src/assistant/conversation_history.py

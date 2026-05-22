@@ -1,3 +1,4 @@
+api
 assistant
 audio
 chat_history
