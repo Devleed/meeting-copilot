@@ -43,7 +43,7 @@ import threading  # threading.Thread — runs the VAD loop on a background threa
 import numpy as np  # numpy — audio buffers are numpy float32 arrays
 
 # Local collaborating classes — all injected or constructed here.
-from audio.audio_device import BlackHoleDeviceLocator
+from audio.audio_device import AudioDeviceLocator
 from audio.audio_capture import AudioCapture
 from audio.vad import VoiceActivityDetector
 from audio.speech_transcriber import SpeechTranscriber
@@ -97,7 +97,7 @@ class AudioPipeline:
 
         # ── Audio device locator ───────────────────────────────────────────────
         # Used in run() to find the BlackHole device index before opening the stream.
-        self._device_locator = BlackHoleDeviceLocator(
+        self._device_locator = AudioDeviceLocator(
             fallback_index=config.blackhole_device_index
         )
 
@@ -148,7 +148,7 @@ class AudioPipeline:
         """
         # Step 1: resolve the BlackHole device index.
         device_index: int = self._device_locator.find()
-        print(f"Using BlackHole device index: {device_index}\n")
+        print(f"Using audio input device index: {device_index}\n")
 
         # Step 2: start the VAD loop on a daemon background thread.
         # daemon=True — this thread is killed automatically when the main thread exits.
@@ -163,8 +163,9 @@ class AudioPipeline:
         capture = AudioCapture(
             device_index=device_index,
             sample_rate=self._config.sample_rate,
-            channels=1,                         # 1 = mono; BlackHole is typically mono
+            channels=1,
             chunk_size=self._config.vad_chunk_size,
+            capture_sample_rate=self._config.capture_sample_rate,
         )
 
         # Print the initial mode banner before entering the stream context.
@@ -320,6 +321,8 @@ class AudioPipeline:
         # Ask the SpeechTranscriber for a list of text segments.
         texts: list = self._transcriber.transcribe(utterance)
 
+        print(f"[ transcribed ] {texts}\n")  # print the raw transcribed segments for debugging
+
         for text in texts:
             # Feed each non-empty segment to the flush buffer.
             # The buffer resets its debounce timer on each add() call.
@@ -346,7 +349,7 @@ class AudioPipeline:
         # fire-and-forget async execution.
         threading.Thread(
             target=self._suggestion_gen.generate,  # function to run on the new thread
-            args=(full_text,),                     # positional argument: the transcribed text
+            args=(full_text, self._mode == "manual"),     # positional argument: the transcribed text
             daemon=True,                           # die with the main thread
         ).start()
 

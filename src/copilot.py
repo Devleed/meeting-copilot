@@ -21,13 +21,37 @@ def main() -> None:
         help="URL of a running suggestion service (e.g. http://localhost:8000). "
              "When set, the local LLM stack is not loaded.",
     )
+    parser.add_argument(
+        "--send-speech-to",
+        metavar="URL",
+        help="Forward each transcribed utterance as a POST request to this URL "
+             "instead of generating AI suggestions.",
+    )
+    parser.add_argument(
+        "--test-audio",
+        action="store_true",
+        help="Detect the loopback audio device, record 3 seconds, and report whether "
+             "audio is being captured. Exits after the test.",
+    )
     args = parser.parse_args()
+
+    if args.test_audio:
+        from audio.audio_device import AudioDeviceLocator, test_audio_capture
+        config = AppConfig()
+        locator = AudioDeviceLocator(fallback_index=config.blackhole_device_index)
+        device_index = locator.find()
+        test_audio_capture(device_index=device_index, sample_rate=config.capture_sample_rate, model_size=config.model_size)
+        return
 
     config = AppConfig()
     chat_history = ChatHistoryService()
     print(f"Session ID: {chat_history.session_id}\n")
 
-    if args.remote:
+    if args.send_speech_to:
+        from assistant.speech_forwarder import SpeechForwarder
+        generator = SpeechForwarder(args.send_speech_to)
+        print(f"Forwarding speech to: {args.send_speech_to}\n")
+    elif args.remote:
         from api.client import RemoteSuggestionClient
         generator = RemoteSuggestionClient(args.remote)
         print(f"Using remote suggestion service: {args.remote}\n")

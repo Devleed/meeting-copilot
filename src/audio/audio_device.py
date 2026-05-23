@@ -1,82 +1,154 @@
-# =============================================================================
-# COMPONENT: audio_device.py
-#
-# Locates the BlackHole virtual audio device by scanning the system's audio
-# device list. BlackHole is a macOS virtual audio device that mirrors system
-# audio output into a virtual input channel that Python can capture with
-# sounddevice.
-#
-# Single Responsibility: find the integer device index of the BlackHole input
-# device. Nothing else — no stream management, no audio processing.
-#
-# SOLID notes:
-#   S — sole job: detect the BlackHole device index.
-#   O — the fallback index is injected; changing it requires no code edit.
-#   D — depends on sounddevice (an external lib) and a fallback index injected
-#       at construction; no module-level globals.
-# =============================================================================
+import platform
+import threading
+from math import gcd
 
-import sounddevice as sd  # sounddevice — wraps PortAudio; sd.query_devices() lists all audio devices
+import numpy as np
+import sounddevice as sd
+from scipy.signal import resample_poly
 
 
-class BlackHoleDeviceLocator:
+def _find_blackhole(fallback_index: int) -> int:
+    devices = sd.query_devices()
+    for i, device in enumerate(devices):
+        if "blackhole" in device["name"].lower() and device["max_input_channels"] > 0:
+            print(f"Found BlackHole device: '{device['name']}' (index {i})")
+            return i
+    print(f"BlackHole not found — falling back to device index {fallback_index}")
+    return fallback_index
+
+
+def _find_pulse_device() -> int | str:
+    devices = sd.query_devices()
+    for i, device in enumerate(devices):
+        if "pulse" in device["name"].lower() and device["max_input_channels"] > 0:
+            print(f"Found PulseAudio device: '{device['name']}' (index {i})")
+            return i
+    print("PulseAudio device not found — falling back to 'default'")
+    return "default"
+
+
+class AudioDeviceLocator:
     """
-    Scans the system's audio devices and returns the index of the BlackHole
-    virtual input device.
+    Locates the appropriate system-audio loopback input device for the current OS.
 
-    Responsibility: iterate over sounddevice's device list, find the first
-    device whose name contains "blackhole" (case-insensitive) and which has
-    at least one input channel, and return its integer index.
-
-    Falls back to a configurable default index if BlackHole is not found,
-    so the pipeline degrades gracefully on systems where BlackHole is not
-    installed (e.g. CI, non-macOS machines).
-
-    Usage:
-        locator = BlackHoleDeviceLocator(fallback_index=1)
-        device_index = locator.find()
+    macOS  → BlackHole virtual audio device
+    Linux  → PulseAudio .monitor source
+    other  → not supported; returns the fallback index with a warning
     """
 
     def __init__(self, fallback_index: int) -> None:
-        # fallback_index — the device index to use if BlackHole is not detected.
-        # Stored as a private attribute; used only inside find().
-        self._fallback_index: int = fallback_index
+        self._fallback_index = fallback_index
 
-    def find(self) -> int:
-        """
-        Return the sounddevice index of the BlackHole input device.
+    def find(self) -> int | str:
+        os_name = platform.system()
+        if os_name == "Darwin":
+            return _find_blackhole(self._fallback_index)
+        elif os_name == "Linux":
+            return _find_pulse_device()
+        else:
+            print(
+                f"Audio loopback capture is not supported on {os_name}. "
+                f"Using fallback device index {self._fallback_index}."
+            )
+            return self._fallback_index
 
-        Returns
-        -------
-        int
-            Index of the BlackHole device, or the fallback index if not found.
-        """
-        # sd.query_devices() — returns a list of dicts, one per audio device on
-        # the system. Each dict contains keys such as:
-        #   "name"               — human-readable device name string
-        #   "max_input_channels" — number of input channels (0 for output-only devices)
-        #   "max_output_channels"— number of output channels
-        # In TS this would be a call to the Web Audio API or a native module.
-        devices = sd.query_devices()
 
-        # enumerate(devices) — yields (index, device_dict) pairs, like Array.entries() in TS.
-        # `i` is the integer device index that sounddevice uses to open a stream.
-        for i, device in enumerate(devices):
-            # device["name"].lower() — lowercase the name for case-insensitive comparison.
-            # "blackhole" in ... — substring membership test. True if "blackhole" appears
-            # anywhere in the name. Catches "BlackHole 2ch", "BlackHole 16ch", etc.
-            # In TS: device.name.toLowerCase().includes("blackhole")
-            #
-            # device["max_input_channels"] > 0 — only consider devices that can receive
-            # audio input. BlackHole appears as both an input device and an output device;
-            # we need the input side so sounddevice can read system audio from it.
-            name_matches: bool = "blackhole" in device["name"].lower()
-            has_input: bool = device["max_input_channels"] > 0
+# Keep the old name as an alias so nothing outside this module breaks
+BlackHoleDeviceLocator = AudioDeviceLocator
 
-            if name_matches and has_input:
-                return i  # i — the integer device index to pass to sd.InputStream
 
-        # BlackHole was not found in the device list (not installed, or unusual name).
-        # Warn the user but continue with the fallback index.
-        print(f"BlackHole not found — falling back to device index {self._fallback_index}")
-        return self._fallback_index
+_WHISPER_RATE = 16000
+
+
+def test_audio_capture(
+    device_index: int | str,
+    sample_rate: int = 16000,
+    duration: float = 5.0,
+    model_size: str = "base",
+) -> bool:
+    """
+    Record `duration` seconds from `device_index`, print signal statistics,
+    resample to 16 kHz if needed, and transcribe with Whisper.
+
+    Intended to be called from the CLI with --test-audio before starting
+    the full pipeline, so the user can verify their loopback device works
+    and confirm that transcription produces sensible output.
+    """
+    print(f"\n[ Audio capture test — device {device_index}, {duration:.0f}s ]")
+    print("  Make sure audio is playing on your system, then wait...\n")
+
+    frames: list = []
+    done = threading.Event()
+    target_samples = int(sample_rate * duration)
+
+    def _callback(indata, _frame_count, _time_info, _status):
+        frames.append(indata.copy())
+        if sum(f.shape[0] for f in frames) >= target_samples:
+            done.set()
+
+    try:
+        with sd.InputStream(
+            device=device_index,
+            channels=1,
+            samplerate=sample_rate,
+            dtype="float32",
+            blocksize=1024,
+            callback=_callback,
+        ):
+            done.wait(timeout=duration + 2.0)
+    except Exception as exc:
+        print(f"  FAIL — could not open device {device_index}: {exc}")
+        _print_available_input_devices()
+        return False
+
+    if not frames:
+        print("  FAIL — no audio frames received from device.")
+        _print_available_input_devices()
+        return False
+
+    audio = np.concatenate([f.flatten() for f in frames])
+    rms = float(np.sqrt(np.mean(audio ** 2)))
+    peak = float(np.max(np.abs(audio)))
+
+    print(f"  Samples captured : {len(audio)}")
+    print(f"  RMS level        : {rms:.6f}")
+    print(f"  Peak level       : {peak:.6f}")
+
+    # 1e-4 ≈ -80 dBFS — anything below this is effectively digital silence
+    if rms <= 1e-4:
+        print(
+            "\n  WARN — signal is very low or completely silent.\n"
+            "         Check that audio is playing and the loopback device is\n"
+            "         set as your system output (macOS: Audio MIDI Setup multi-output;\n"
+            "         Linux: set the monitor source as the default input in pavucontrol).\n"
+        )
+        return False
+
+    print("  PASS — audio signal detected.\n")
+
+    # Resample to Whisper's required 16 kHz if the capture rate differs.
+    if sample_rate != _WHISPER_RATE:
+        g = gcd(sample_rate, _WHISPER_RATE)
+        audio = resample_poly(audio, _WHISPER_RATE // g, sample_rate // g).astype(np.float32)
+
+    from audio.speech_transcriber import SpeechTranscriber
+    transcriber = SpeechTranscriber(model_size=model_size)
+
+    print("[ Transcription ]")
+    segments = transcriber.transcribe(audio)
+    if segments:
+        for line in segments:
+            print(f"  {line}")
+    else:
+        print("  (no speech detected)")
+    print()
+
+    return True
+
+
+def _print_available_input_devices() -> None:
+    print("\n  Available input devices:")
+    for i, dev in enumerate(sd.query_devices()):
+        if dev["max_input_channels"] > 0:
+            print(f"    [{i:2d}] {dev['name']}  (channels: {dev['max_input_channels']})")
+    print()

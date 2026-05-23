@@ -2,6 +2,7 @@ README.md
 pyproject.toml
 src/config.py
 src/copilot.py
+src/test.py
 src/transcribe.py
 src/api/__init__.py
 src/api/client.py

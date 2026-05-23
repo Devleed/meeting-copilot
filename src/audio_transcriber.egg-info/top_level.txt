@@ -6,4 +6,5 @@ config
 copilot
 llm
 rag
+test
 transcribe

@@ -16,6 +16,7 @@
 # =============================================================================
 
 import os                    # os — standard library; provides os.getenv for reading env vars
+import platform              # platform — detects the OS at startup for per-platform defaults
 from dotenv import load_dotenv  # load_dotenv — reads a .env file into os.environ at startup
 
 # load_dotenv() — scans the current working directory for a file named ".env"
@@ -52,6 +53,13 @@ class AppConfig:
         #   Audio sample rate in Hz. 16 000 is Whisper's native rate; any other
         #   value requires resampling and degrades transcription quality.
         self.sample_rate: int = self._int("SAMPLE_RATE", 16000)
+
+        # capture_sample_rate : int
+        #   Native sample rate of the audio capture device. On Linux/PipeWire the
+        #   pulse device runs at 48 000 Hz; AudioCapture resamples to sample_rate.
+        #   On Mac, BlackHole runs at 16 000 Hz so no resampling is needed.
+        _default_capture_rate = 48000 if platform.system() == "Linux" else 16000
+        self.capture_sample_rate: int = self._int("CAPTURE_SAMPLE_RATE", _default_capture_rate)
 
         # vad_chunk_size : int
         #   Silero VAD requires exactly 512 samples per inference call at 16 kHz

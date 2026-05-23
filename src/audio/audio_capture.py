@@ -17,7 +17,11 @@
 #       injected at start(); the capture class never knows what happens to audio.
 # =============================================================================
 
-import sounddevice as sd  # sounddevice — wraps PortAudio; provides InputStream for audio capture
+from math import gcd
+
+import numpy as np
+import sounddevice as sd
+from scipy.signal import resample_poly
 
 
 class AudioCapture:
@@ -43,19 +47,17 @@ class AudioCapture:
 
     def __init__(
         self,
-        device_index: int,   # device_index — sounddevice integer index for the input device
-        sample_rate: int,    # sample_rate  — audio sample rate in Hz (e.g. 16 000)
-        channels: int,       # channels     — number of audio channels (1 = mono)
-        chunk_size: int,     # chunk_size   — audio block size in samples per callback call
+        device_index: int | str,  # sounddevice integer index or "default"
+        sample_rate: int,         # downstream rate in Hz — what VAD and Whisper expect (16 000)
+        channels: int,            # number of audio channels (1 = mono)
+        chunk_size: int,          # block size in samples at sample_rate (e.g. 512)
+        capture_sample_rate: int | None = None,  # native device rate; None means same as sample_rate
     ) -> None:
-        # Store construction parameters as private attributes for use in open().
-        self._device_index: int = device_index
+        self._device_index = device_index
         self._sample_rate: int = sample_rate
         self._channels: int = channels
         self._chunk_size: int = chunk_size
-
-        # _stream — holds the sounddevice InputStream object after open() is called.
-        # None before open() so attribute access always succeeds without raising AttributeError.
+        self._capture_sample_rate: int = capture_sample_rate if capture_sample_rate is not None else sample_rate
         self._stream = None
 
     def open(self, callback):
@@ -89,16 +91,30 @@ class AudioCapture:
         AudioCapture
             self — enables use as a context manager.
         """
-        # sd.InputStream(...) — construct the PortAudio stream object.
-        # The stream is NOT yet active; it starts capturing when __enter__ is called
-        # (which sounddevice's InputStream does automatically in its own __enter__).
+        needs_resample = self._capture_sample_rate != self._sample_rate
+        if needs_resample:
+            _g = gcd(self._sample_rate, self._capture_sample_rate)
+            _up = self._sample_rate // _g
+            _down = self._capture_sample_rate // _g
+            # Capture blocksize scaled so resampled output is exactly chunk_size samples.
+            capture_blocksize = self._chunk_size * self._capture_sample_rate // self._sample_rate
+
+            def _resampling_callback(indata, frames, time, status):
+                resampled = resample_poly(indata, _up, _down, axis=0).astype(np.float32)
+                callback(resampled, resampled.shape[0], time, status)
+
+            stream_callback = _resampling_callback
+        else:
+            capture_blocksize = self._chunk_size
+            stream_callback = callback
+
         self._stream = sd.InputStream(
-            device=self._device_index,   # which audio device to open
-            channels=self._channels,     # number of input channels (1 = mono)
-            samplerate=self._sample_rate,  # sample rate in Hz
-            dtype="float32",             # sample format: 32-bit float in [-1.0, 1.0]
-            blocksize=self._chunk_size,  # deliver exactly this many samples per callback
-            callback=callback,           # function to call for each delivered block
+            device=self._device_index,
+            channels=self._channels,
+            samplerate=self._capture_sample_rate,
+            dtype="float32",
+            blocksize=capture_blocksize,
+            callback=stream_callback,
         )
 
         # Enter the InputStream's own context manager to start the stream.

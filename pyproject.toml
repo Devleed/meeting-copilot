@@ -20,6 +20,7 @@ dependencies = [
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.20.0",
     "httpx>=0.24.0",
+    "scipy>=1.17.1",
 ]
 
 [project.scripts]
