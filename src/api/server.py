@@ -60,20 +60,26 @@ def health():
 @app.post("/suggest", response_model=SuggestResponse)
 def suggest(req: SuggestRequest):
     generator: SuggestionGenerator = app.state.generator
-    chunks = list(generator.stream_response(req.text, req.manual))
+    print("\n" + "─" * 50)
+    print(f"THEY SAID: {req.speech}")
+    print()
+    chunks: list[str] = []
+    for chunk in generator.stream_response(req.speech, req.manual):
+        print(chunk, end="", flush=True)
+        chunks.append(chunk)
+    print("\n" + "─" * 50 + "\n")
     return SuggestResponse(response="".join(chunks))
 
 
 @app.post("/suggest/stream")
 def suggest_stream(req: SuggestRequest):
+    print(f"Speech received: '{req.speech}' (manual={req.manual})")
+
     generator: SuggestionGenerator = app.state.generator
 
-    def _event_stream() -> Iterator[str]:
-        for chunk in generator.stream_response(req.text, req.manual):
-            yield f"data: {json.dumps(chunk)}\n\n"
-        yield "data: [DONE]\n\n"
+    generator.generate(req.speech, req.manual)
 
-    return StreamingResponse(_event_stream(), media_type="text/event-stream")
+    return None
 
 
 def start() -> None:

@@ -27,7 +27,7 @@ class RemoteSuggestionClient:
                 with client.stream(
                     "POST",
                     f"{self._base_url}/suggest/stream",
-                    json={"text": text, "manual": manual},
+                    json={"speech": text, "manual": manual},
                 ) as response:
                     response.raise_for_status()
                     for line in response.iter_lines():

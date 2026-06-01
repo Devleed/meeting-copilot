@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 
 class SuggestRequest(BaseModel):
-    text: str
+    speech: str
     manual: bool = False
 
 

@@ -89,7 +89,8 @@ FOLLOW-UP: <suggested follow-up question>
         try:
             print("\n" + "─" * 50)
             print(f"THEY SAID: {they_said}")
-            print()
+            # print()
+            print("\n" + "=" * 50)
 
             chunks: list[str] = []
             for chunk in self._llm.stream_suggestion(
