@@ -12,12 +12,14 @@ src/assistant/__init__.py
 src/assistant/assistant.py
 src/assistant/conversation_history.py
 src/assistant/greeting_filter.py
+src/assistant/speech_forwarder.py
 src/assistant/suggestion_generator.py
 src/audio/__init__.py
 src/audio/audio_capture.py
 src/audio/audio_device.py
 src/audio/flush_buffer.py
 src/audio/pipeline.py
+src/audio/pocketstation_capture.py
 src/audio/speech_transcriber.py
 src/audio/vad.py
 src/audio_transcriber.egg-info/PKG-INFO
@@ -41,3 +43,4 @@ src/rag/retriever.py
 src/rag/retriever_builder.py
 src/rag/text_chunker.py
 src/rag/vector_store.py
+tests/test_pocketstation_capture.py

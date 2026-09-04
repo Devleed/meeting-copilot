@@ -83,6 +83,11 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 
+[package.optional-dependencies]
+pocketstation = [
+    { name = "pocketstation" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "anthropic" },
@@ -92,6 +97,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.24.0" },
     { name = "numpy" },
     { name = "openai" },
+    { name = "pocketstation", marker = "extra == 'pocketstation'", specifier = ">=0.1.3,<0.2" },
     { name = "pypdf" },
     { name = "python-docx" },
     { name = "python-dotenv" },
@@ -104,6 +110,7 @@ requires-dist = [
     { name = "torchaudio", specifier = ">=2.11.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.20.0" },
 ]
+provides-extras = ["pocketstation"]
 
 [[package]]
 name = "av"
@@ -1396,6 +1403,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d7/f1/e7a6dd94a8d4a5626c03e4e99c87f241ba9e350cd9e6d75123f992427270/packaging-26.2.tar.gz", hash = "sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661", size = 228134, upload-time = "2026-04-24T20:15:23.917Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl", hash = "sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e", size = 100195, upload-time = "2026-04-24T20:15:22.081Z" },
+]
+
+[[package]]
+name = "pocketstation"
+version = "0.1.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/7f/0026eb48346b0a500ce59bdb0e38d355561165acd4f2e867ecd2be415124/pocketstation-0.1.3.tar.gz", hash = "sha256:0a5677a61247a4e3ff02f28699ad3ed86fcc49dd1f659a5ba66ea14c5cf55142", size = 241764, upload-time = "2026-09-03T09:50:36.391Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0a/eb/8ea3ecf78a920f03bd13c0dd704ad4913bbf1526835e73f6b313f6ab6c42/pocketstation-0.1.3-cp311-abi3-macosx_10_12_x86_64.whl", hash = "sha256:5ce60701ea2bbc03c95649f5b52031c2da23c7f7d1313c194ecfb52f5a165a0d", size = 5430573, upload-time = "2026-09-03T09:50:26.251Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/61/fe6a1d6c0c14c04e738dbeee07b51284026676992a5c1f35cda162896d03/pocketstation-0.1.3-cp311-abi3-macosx_11_0_arm64.whl", hash = "sha256:4812aa28563e02714fc61e40c2d1a92bddf17350c99b8beb61702e8ef5634e71", size = 5189712, upload-time = "2026-09-03T09:50:27.777Z" },
+    { url = "https://files.pythonhosted.org/packages/56/9b/82cafb9eff21adac18c33c9a1077c8b6b10a63582d3c8ffd1069e015907e/pocketstation-0.1.3-cp311-abi3-manylinux_2_34_aarch64.whl", hash = "sha256:27df7f2ee4c8ab5498c61eea14e7c07aee59fe3c5dec9405996394df27c67be9", size = 8987647, upload-time = "2026-09-03T09:50:29.525Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/df/ba5425948c39257592ba46cc531ec3c28c7e547febf5d7a9206a61ac17c5/pocketstation-0.1.3-cp311-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:67505af937346370276221585a2cc5c10db8afed5926739bce2eb8c6ca8a19fc", size = 9350537, upload-time = "2026-09-03T09:50:31.307Z" },
+    { url = "https://files.pythonhosted.org/packages/72/4d/23a22de5960e5a4225f48c8644a61b0f2f6d883c9b1bd30cefdfbea97743/pocketstation-0.1.3-cp311-abi3-win_amd64.whl", hash = "sha256:849046bb1e5ad63ace51cbf64f7200d224b0163cc1b4599f0781038b8a365918", size = 4593976, upload-time = "2026-09-03T09:50:33.163Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/99/27dbdf151fe02b57e98c5cf6119925fccc2cae91387569bb49b9a5447cf0/pocketstation-0.1.3-cp311-abi3-win_arm64.whl", hash = "sha256:4c5105addfc7602833cf28b1f2e3a54a601992b26c1bfe8a77dc363d8e95fab0", size = 4481118, upload-time = "2026-09-03T09:50:34.699Z" },
 ]
 
 [[package]]

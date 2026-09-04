@@ -61,6 +61,18 @@ class AppConfig:
         _default_capture_rate = 48000 if platform.system() == "Linux" else 16000
         self.capture_sample_rate: int = self._int("CAPTURE_SAMPLE_RATE", _default_capture_rate)
 
+        # capture_backend : str
+        #   "sounddevice" keeps the current BlackHole/PulseAudio input.
+        #   "pocketstation" captures one named desktop application directly.
+        self.capture_backend: str = self._str("CAPTURE_BACKEND", "sounddevice")
+        if self.capture_backend not in {"sounddevice", "pocketstation"}:
+            raise ValueError("CAPTURE_BACKEND must be 'sounddevice' or 'pocketstation'")
+
+        # capture_application : str | None
+        #   Required by the PocketStation backend. Accepts an exact application
+        #   name, an application ID, or pid:<process id>.
+        self.capture_application: str | None = os.environ.get("CAPTURE_APPLICATION")
+
         # vad_chunk_size : int
         #   Silero VAD requires exactly 512 samples per inference call at 16 kHz
         #   (32 ms of audio per chunk). Changing this breaks the VAD model contract.

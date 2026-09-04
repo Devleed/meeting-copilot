@@ -20,3 +20,5 @@ Requires-Dist: fastapi>=0.100.0
 Requires-Dist: uvicorn[standard]>=0.20.0
 Requires-Dist: httpx>=0.24.0
 Requires-Dist: scipy>=1.17.1
+Provides-Extra: pocketstation
+Requires-Dist: pocketstation<0.2,>=0.1.3; extra == "pocketstation"

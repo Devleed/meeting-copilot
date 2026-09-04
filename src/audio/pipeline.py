@@ -7,7 +7,7 @@
 #
 # High-level data flow:
 #
-#   BlackHole device → AudioCapture → audio_queue
+#   Configured audio source → capture callback → audio_queue
 #                                         ↓  (VAD thread)
 #                                   VoiceActivityDetector
 #                                         ↓  (speech detected → silence)
@@ -48,6 +48,7 @@ from audio.audio_capture import AudioCapture
 from audio.vad import VoiceActivityDetector
 from audio.speech_transcriber import SpeechTranscriber
 from audio.flush_buffer import FlushBuffer
+from audio.pocketstation_capture import PocketStationCapture
 
 
 class AudioPipeline:
@@ -64,8 +65,9 @@ class AudioPipeline:
       config               — supplies all tunable parameters.
 
     Internal components created by this class:
-      BlackHoleDeviceLocator — finds the audio input device index.
+      AudioDeviceLocator     — finds the audio input device index.
       AudioCapture           — manages the sounddevice InputStream.
+      PocketStationCapture   — captures one selected desktop application.
       VoiceActivityDetector  — Silero VAD; classifies audio chunks as speech/silence.
       SpeechTranscriber      — faster-whisper; converts audio buffers to text.
       FlushBuffer            — debounces text segments and fires the AI callback.
@@ -141,14 +143,37 @@ class AudioPipeline:
         Start the pipeline and block until Ctrl+C or EOF.
 
         Steps:
-          1. Find the BlackHole input device.
+          1. Choose the configured audio source.
           2. Start the VAD background thread.
           3. Open the audio capture stream.
           4. Run the keyboard command loop on the main thread.
         """
-        # Step 1: resolve the BlackHole device index.
-        device_index: int = self._device_locator.find()
-        print(f"Using audio input device index: {device_index}\n")
+        # Step 1: choose the configured audio source.
+        if self._config.capture_backend == "pocketstation":
+            if not self._config.capture_application:
+                raise ValueError(
+                    "CAPTURE_APPLICATION is required when CAPTURE_BACKEND=pocketstation"
+                )
+            capture = PocketStationCapture(
+                application=self._config.capture_application,
+                sample_rate=self._config.sample_rate,
+                channels=1,
+                chunk_size=self._config.vad_chunk_size,
+            )
+            print(
+                "Using PocketStation application audio: "
+                f"{self._config.capture_application}\n"
+            )
+        else:
+            device_index = self._device_locator.find()
+            print(f"Using audio input device index: {device_index}\n")
+            capture = AudioCapture(
+                device_index=device_index,
+                sample_rate=self._config.sample_rate,
+                channels=1,
+                chunk_size=self._config.vad_chunk_size,
+                capture_sample_rate=self._config.capture_sample_rate,
+            )
 
         # Step 2: start the VAD loop on a daemon background thread.
         # daemon=True — this thread is killed automatically when the main thread exits.
@@ -159,29 +184,19 @@ class AudioPipeline:
         )
         vad_thread.start()  # .start() — launch the thread; returns immediately
 
-        # Step 3: open the audio stream (context manager ensures it closes on exit).
-        capture = AudioCapture(
-            device_index=device_index,
-            sample_rate=self._config.sample_rate,
-            channels=1,
-            chunk_size=self._config.vad_chunk_size,
-            capture_sample_rate=self._config.capture_sample_rate,
-        )
-
         # Print the initial mode banner before entering the stream context.
         print("[ MODE: AUTO — VAD will detect end of speech ]")
         print("[ Type m + Enter to toggle mode | Press Enter in manual mode to transcribe ]")
         print("[ Type q + Enter to end session and view chat history ]\n")
 
-        # `with capture.open(callback=...) as _:` — open the stream and keep it alive
-        # for the duration of the with-block. The callback is called on the PortAudio
-        # audio thread for each new block of VAD_CHUNK_SIZE samples.
+        # Open the selected source and keep it alive for the duration of the
+        # command loop. Both capture implementations provide the same callback.
         with capture.open(callback=self._audio_callback):
             print("Listening... Press Ctrl+C to stop\n")
             # Step 4: run the keyboard command loop on the main thread.
             self._command_loop()
 
-    # ── Audio callback (called on the PortAudio audio thread) ─────────────────
+    # ── Audio callback ────────────────────────────────────────────────────────
 
     def _audio_callback(
         self,
@@ -191,15 +206,14 @@ class AudioPipeline:
         status,    # status  — sounddevice StatusFlags; non-zero signals overflow/underflow
     ) -> None:
         """
-        Called by sounddevice on the high-priority audio thread for each block.
+        Called by the selected capture implementation for each audio block.
 
         Must return quickly — no heavy computation here. Just copy the buffer
         (sounddevice reuses it) and push it onto the queue.
         """
-        # indata.copy() — make a copy of the audio buffer before enqueueing.
-        # sounddevice reuses the same memory block for every callback invocation;
-        # without .copy() we'd enqueue a reference to memory that gets overwritten
-        # before the VAD thread reads it, producing corrupted/silent audio.
+        # Copy before enqueueing because sounddevice reuses its input buffer.
+        # Keeping the same rule for every capture implementation also gives the
+        # queue ownership of every array it receives.
         # In TS: Float32Array.from(indata) or structuredClone(indata)
         self._audio_queue.put(indata.copy())
 

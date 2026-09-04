@@ -27,6 +27,8 @@ dependencies = [
 copilot = "copilot:main"
 suggest-server = "api.server:start"
 
+[project.optional-dependencies]
+pocketstation = ["pocketstation>=0.1.3,<0.2"]
+
 [tool.uv]
 package = true
-
