@@ -30,20 +30,43 @@ def main() -> None:
     parser.add_argument(
         "--test-audio",
         action="store_true",
-        help="Detect the loopback audio device, record 3 seconds, and report whether "
-             "audio is being captured. Exits after the test.",
+        help="Capture 3 seconds and report whether audio is available. Exits after the test.",
+    )
+    parser.add_argument(
+        "--capture-backend",
+        choices=("sounddevice", "pocketstation"),
+        help="Capture through the existing audio device or a selected application.",
+    )
+    parser.add_argument(
+        "--application",
+        help="Application name, application ID, or pid:<process id> for PocketStation capture.",
     )
     args = parser.parse_args()
 
+    config = AppConfig()
+    if args.capture_backend is not None:
+        config.capture_backend = args.capture_backend
+    if args.application is not None:
+        config.capture_application = args.application
+        config.capture_backend = "pocketstation"
+
     if args.test_audio:
+        if config.capture_backend == "pocketstation":
+            if not config.capture_application:
+                parser.error("--application is required with --capture-backend pocketstation")
+            from audio.pocketstation_capture import test_pocketstation_capture
+            test_pocketstation_capture(
+                config.capture_application,
+                sample_rate=config.sample_rate,
+                chunk_size=config.vad_chunk_size,
+            )
+            return
         from audio.audio_device import AudioDeviceLocator, test_audio_capture
-        config = AppConfig()
         locator = AudioDeviceLocator(fallback_index=config.blackhole_device_index)
         device_index = locator.find()
         test_audio_capture(device_index=device_index, sample_rate=config.capture_sample_rate, model_size=config.model_size)
         return
 
-    config = AppConfig()
     chat_history = ChatHistoryService()
     print(f"Session ID: {chat_history.session_id}\n")
 

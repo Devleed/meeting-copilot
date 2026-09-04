@@ -9,8 +9,8 @@ A real-time AI meeting assistant that listens to your system audio, transcribes 
 ## How It Works
 
 ```
-System Audio (BlackHole)
-    → sounddevice InputStream
+System Audio (BlackHole) or selected application (PocketStation)
+    → audio callback
     → Voice Activity Detection (Silero VAD)
     → Speech Transcription (faster-whisper)
     → Debounce / Flush Buffer
@@ -26,10 +26,14 @@ The assistant detects when someone finishes speaking, transcribes the utterance,
 
 ### System Requirements
 
-- **MacOS**
+- **macOS** for the default BlackHole setup
 - **Python 3.11+**
 - **[uv](https://github.com/astral-sh/uv)** — fast Python package manager (recommended)
-- **[BlackHole 2ch](https://existential.audio/blackhole/)** — virtual audio device that routes system audio to the app
+- **[BlackHole 2ch](https://existential.audio/blackhole/)** — required only for the default macOS audio-device setup
+
+PocketStation is an optional alternative when you want audio from one desktop
+application without routing all system output through BlackHole. Prebuilt
+Python packages are available for macOS, Windows, and Linux.
 
 ### BlackHole Setup
 
@@ -70,6 +74,37 @@ uv sync
 pip install faster-whisper sounddevice numpy openai anthropic torch torchaudio \
     tiktoken qdrant-client pypdf2 python-docx python-dotenv rank-bm25 cohere
 ```
+
+### Capture one application with PocketStation
+
+Install the optional package:
+
+```bash
+uv sync --extra pocketstation
+```
+
+Then name the application you want the copilot to hear:
+
+```bash
+uv run copilot --application "Zoom"
+```
+
+Passing `--application` selects PocketStation automatically.
+
+The application can also be selected by an operating-system application ID or
+by a process ID such as `pid:1234`. The rest of the program is unchanged:
+Silero still detects speech, faster-whisper still transcribes it, and the
+existing suggestion and retrieval code receives the transcript.
+
+Check capture before loading the full assistant:
+
+```bash
+uv run copilot --application "Zoom" --test-audio
+```
+
+Start playback before running the check. PocketStation reports missing,
+ambiguous, silent, and unauthorized applications instead of silently recording
+a different source. Operating-system audio permissions still apply.
 
 ---
 
@@ -112,6 +147,8 @@ All settings can also be passed as shell environment variables. The `.env` file 
 | `EMBEDDER_EMBED_MODEL`         | `text-embedding-3-small` | OpenAI embedding model                                                   |
 | `EMBEDDER_EMBED_DIM`           | `1536`                   | Embedding vector dimensions (must match embed model)                     |
 | `BLACKHOLE_DEVICE_INDEX`       | `1`                      | Fallback device index if BlackHole auto-detection fails                  |
+| `CAPTURE_BACKEND`              | `sounddevice`            | `sounddevice` or `pocketstation`                                         |
+| `CAPTURE_APPLICATION`          | —                        | Application name, application ID, or `pid:<process id>`                  |
 
 ---
 
